@@ -5,6 +5,6 @@ while True:
     result, error = snoopy.run('<stdin>', user_input_test)
 
     if error:
-        print(error.as_string())
+        print(error.__str__())
     else:
         print(result)

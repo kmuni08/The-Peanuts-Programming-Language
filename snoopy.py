@@ -115,7 +115,7 @@ class Error:
         self.error_message = error_message
         self.error_content = error_content
 
-    def as_string(self):
+    def __str__(self):
         result = f'{self.error_message}: {self.error_content}'
         result += f'File {self.position_start.file_name}, line {self.position_start.line_number + 1}'
         return result
