@@ -1,0 +1,2 @@
+First step: Create a "Lexer" which goes through input char by char and break text into TOKENS.
+Token -> object which has type and value. 123 ->  type INT with value of 123. PLUS -> TOKEN
