@@ -1,0 +1,8 @@
+DEFINITIONS:
+| means OR and * means 0 or more of what's before it.
+
+expr : term ((PLUS|MINUS) term)*
+
+term : factor ((MUL|DIV) factor)*
+
+factor: INT|FLOAT
