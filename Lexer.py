@@ -22,6 +22,7 @@ class Lexer:
 
     def create_tokens(self):
         result_tokens = []
+
         while self.current_char is not None:
             # ignore whitespaces and tabs
             if self.current_char in ' \t':
@@ -71,24 +72,21 @@ class Lexer:
 
     def create_number(self):
         num_string = ''
-        decimal_count = 0
-        position_start = self.pos.make_copy()
-
-        # if there is a number with decimal, it's a double.
+        dot_count = 0
+        pos_start = self.pos.make_copy()
 
         while self.current_char is not None and self.current_char in Constants.DIGITS + '.':
-            if self.current_char == ".":
-                if decimal_count == 1:
+            if self.current_char == '.':
+                if dot_count == 1:
                     break
-                decimal_count += 1
+                dot_count += 1
             num_string += self.current_char
             self.continue_on()
 
-            print(Token(Constants.TT_INT, int(num_string), position_start, self.pos))
-            if decimal_count == 0:
-                return Token(Constants.TT_INT, int(num_string), position_start, self.pos)
-            else:
-                return Token(Constants.TT_FLOAT, float(num_string), position_start, self.pos)
+        if dot_count == 0:
+            return Token(Constants.TT_INT, int(num_string), pos_start, self.pos)
+        else:
+            return Token(Constants.TT_FLOAT, float(num_string), pos_start, self.pos)
 
     def create_identifier(self):
         id_str = ''

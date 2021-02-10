@@ -59,7 +59,7 @@ class Parser:
                     InvalidSyntaxError(self.current_token.position_start, self.current_token.position_end,
                                        "Expected ')'"))
         return result_pr.fail(InvalidSyntaxError(
-            self.current_token.position_start, self.current_token.position_end,
+            token.position_start, token.position_end,
             "Expected int, float, identifier, '+', '-', or '(' "
         ))
 
@@ -72,7 +72,8 @@ class Parser:
         token = self.current_token
 
         if token.type in (Constants.TT_PLUS, Constants.TT_MINUS):
-            result_pr.doCheck(self.continue_on())
+            result_pr.register_advancement()
+            self.continue_on()
             factor = result_pr.doCheck(self.factor())
             if result_pr.error:
                 return result_pr

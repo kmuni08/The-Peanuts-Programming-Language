@@ -1,4 +1,3 @@
-
 class VarAccessNode:
     def __init__(self, var_name_token):
         self.var_name_token = var_name_token
