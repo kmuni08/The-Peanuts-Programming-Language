@@ -145,6 +145,30 @@ class InvalidSyntaxError(Error):
         super().__init__(position_start, position_end, 'Illegal Syntax', error_content)
 
 
+class RunTimeError(Error):
+    def __init__(self, position_start, position_end, error_content, context):
+        super().__init__(position_start, position_end, 'Run Time Error', error_content)
+        self.context = context
+
+    def __str__(self):
+        result = self.generate_traceback()
+        result += f'{self.error_message}: {self.error_content}'
+        result += '\n\n' + string_with_arrows(self.position_start.file_text, self.position_start, self.position_end)
+        return result
+
+    def generate_traceback(self):
+        result = ''
+        position = self.position_start
+        ctx = self.context
+        while ctx:
+            result = f' File {position.file_name}, line {str(position.line_number + 1)}, in {ctx.display_name} \n' \
+                     + result
+            position = ctx.parent_entry_position
+            ctx = ctx.parent
+
+        return 'Traceback (most recent call last ):\n' + result
+
+
 # POSITION -> keeps track of line number, column number and index
 class Position:
     def __init__(self, index, line_number, column_number, file_name, file_text):
@@ -154,7 +178,7 @@ class Position:
         self.file_name = file_name
         self.file_text = file_text
 
-    def continue_on(self, current_char = None):
+    def continue_on(self, current_char=None):
         self.index += 1
         self.column_number += 1
         if current_char == '\n':
@@ -168,10 +192,12 @@ class Position:
 
 
 # NODES
-class NumberNode:
+class NodeValue:
     # takes in number token if int or float.
     def __init__(self, token):
         self.token = token
+        self.position_start = self.token.position_start
+        self.position_end = self.token.position_end
 
     def __repr__(self):
         return f'{self.token}'
@@ -182,18 +208,22 @@ class BinaryOperationNode:
         self.left_node = left_node
         self.operator_token = operator_token
         self.right_node = right_node
+        self.position_start = self.left_node.position_start
+        self.position_end = self.right_node.position_end
 
     def __repr__(self):
         return f'({self.left_node}, {self.operator_token}, {self.right_node})'
 
 
 class UnaryOperationNode:
-    def __init__(self, operation_token, node):
-        self.operation_token = operation_token
+    def __init__(self, operator_token, node):
+        self.operator_token = operator_token
         self.node = node
+        self.position_start = self.operator_token.position_start
+        self.position_end = node.position_end
 
     def __repr__(self):
-        return f'({self.operation_token}, {self.node})'
+        return f'({self.operator_token}, {self.node})'
 
 
 # Instead of returning a Node in each function, we'll return
@@ -204,6 +234,7 @@ class ParseResult:
         self.error = None
         self.node = None
 
+    # take in ParseResult or node.
     def doCheck(self, result):
         if isinstance(result, ParseResult):
             if result.error:
@@ -255,7 +286,7 @@ class Parser:
             return result_pr.success(UnaryOperationNode(token, factor))
         elif token.type in (TT_INT, TT_FLOAT):
             result_pr.doCheck(self.continue_on())
-            return result_pr.success(NumberNode(token))
+            return result_pr.success(NodeValue(token))
         elif token.type == TT_LPAREN:
             result_pr.doCheck(self.continue_on())
             expression = result_pr.doCheck(self.expression())
@@ -265,8 +296,9 @@ class Parser:
                 result_pr.doCheck(self.continue_on())
                 return result_pr.success(expression)
             else:
-                return result_pr.fail(InvalidSyntaxError(self.current_token.position_start, self.current_token.position_end,
-                                                   "Expected ')'"))
+                return result_pr.fail(
+                    InvalidSyntaxError(self.current_token.position_start, self.current_token.position_end,
+                                       "Expected ')'"))
 
         return result_pr.fail(InvalidSyntaxError(
             token.position_start, token.postion_end,
@@ -297,14 +329,167 @@ class Parser:
         return result_pr.success(left)
 
 
+# keeps track of result and error if any. Like the Parser Result class.
+class RunTimeResult:
+    def __init__(self):
+        self.value = None
+        self.error = None
+
+    def register(self, res):
+        if res.error:
+            self.error = res.error
+        return res.value
+
+    def success(self, value):
+        self.value = value
+        return self
+
+    def failure(self, error):
+        self.error = error
+        return self
+
+
+# NUMBER class to store numbers and operate on other numbers
+
+class Number:
+    def __init__(self, value):
+        self.value = value
+        self.set_pos()
+        self.set_context()
+
+    def set_pos(self, position_start=None, position_end=None):
+        self.position_start = position_start
+        self.position_end = position_end
+        return self
+
+    def set_context(self, context=None):
+        self.context = context
+        return self
+
+    def add_to(self, other):
+        if isinstance(other, Number):
+            return Number(self.value + other.value).set_context(self.context), None
+
+    def sub_by(self, other):
+        if isinstance(other, Number):
+            return Number(self.value - other.value).set_context(self.context), None
+
+    def mul_by(self, other):
+        if isinstance(other, Number):
+            return Number(self.value * other.value).set_context(self.context), None
+
+    def div_by(self, other):
+        if isinstance(other, Number):
+            if other.value == 0:
+                return None, RunTimeError(
+                    other.position_start, other.position_end,
+                    'Division by zero ',
+                    self.context
+                )
+            return Number(self.value / other.value).set_context(self.context), None
+
+    def mod_by(self, other):
+        if isinstance(other, Number):
+            return Number(self.value % other.value).set_context(self.context), None
+
+    def __repr__(self):
+        return str(self.value)
+
+
+# INTERPRETER
+
+class Interpreter:
+    # takes in node to process, then visit child nodes. Want to determine
+    # what function to call based on node.
+    def visitNode(self, node, context):
+        function_name = f'visit_{type(node).__name__}'
+        function = getattr(self, function_name, self.no_visit_function)
+        return function(node, context)
+
+    def no_visit_function(self, node, context):
+        raise Exception(f'No visit_{type(node).__name__} method defined')
+
+    # Number node function
+    def visit_NodeValue(self, node, context):
+        # update the Node class to account for position_start and position_end
+        return RunTimeResult().success(
+            Number(node.token.value).set_context(context).set_pos(node.position_start, node.position_end))
+
+    # Binary Operator Node
+    def visit_BinaryOperationNode(self, node, context):
+        # calls the root node for now. Want to call left and right nodes
+        res = RunTimeResult()
+        left = res.register(self.visitNode(node.left_node, context))
+        if res.error:
+            return res
+        right = res.register(self.visitNode(node.right_node, context))
+        if res.error:
+            return res
+
+        print("Hello", node.operator_token.type)
+        if node.operator_token.type == TT_PLUS:
+            result, error = left.add_to(right)
+        elif node.operator_token.type == TT_MINUS:
+            result, error = left.sub_by(right)
+        elif node.operator_token.type == TT_MUL:
+            result, error = left.mul_by(right)
+        elif node.operator_token.type == TT_DIV:
+            result, error = left.div_by(right)
+        elif node.operator_token.type == TT_MOD:
+            result, error = left.mod_by(right)
+
+        if error:
+            return res.failure(error)
+        else:
+            return res.success(result.set_pos(node.position_start, node.position_end))
+
+    # Unary Operator Node
+    def visit_UnaryOperationNode(self, node, context):
+        res = RunTimeResult()
+        number = res.register(self.visitNode(node.node, context))
+
+        if res.error:
+            return res
+
+        error = None
+
+        if node.operator_token.type == TT_MINUS:
+            number, error = number.mul_by(Number(-1))
+
+        if error:
+            return res.failure(error)
+        else:
+            return res.success(number.set_pos(node.position_start, node.position_end))
+
+
+# Create CONTEXT Class for updating context of where error is coming from.
+# holds current context of the program. (Functions or entire program)
+# display name = error, function name or program
+# parent = parent of divide_by_zero would be function name
+# parent_entry_position: position where context changes.
+class Context:
+    def __init__(self, display_name, parent=None, parent_entry_position=None):
+        self.display_name = display_name
+        self.parent = parent
+        self.parent_entry_position = parent_entry_position
+
+
 # RUN
 def run(file_name, text):
     lexer = Lexer(file_name, text)
     tokens, error = lexer.create_tokens()
-
     if error:
         return None, error
     # GENERATE AST
     parser = Parser(tokens)
     ast = parser.parse()
-    return ast.node, ast.error
+
+    # Create Instance of Interpreter
+    if ast.error:
+        return None, ast.error
+    # Run Program
+    interpreter = Interpreter()
+    context = Context('<program>')
+    result = interpreter.visitNode(ast.node, context)
+
+    return result.value, result.error
