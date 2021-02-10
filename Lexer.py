@@ -84,6 +84,7 @@ class Lexer:
             num_string += self.current_char
             self.continue_on()
 
+            print(Token(Constants.TT_INT, int(num_string), position_start, self.pos))
             if decimal_count == 0:
                 return Token(Constants.TT_INT, int(num_string), position_start, self.pos)
             else:

@@ -1,6 +1,7 @@
 # NUMBER class to store numbers and operate on other numbers
 from RunTimeError import RunTimeError
 
+
 class Number:
     def __init__(self, value):
         self.value = value
