@@ -6,5 +6,5 @@ while True:
 
     if error:
         print(error.__str__())
-    else:
+    elif result:
         print(result)

@@ -30,5 +30,13 @@ KEYWORDS = [
     'LET',
     'AND',
     'OR',
-    'NOT'
+    'NOT',
+    'IF',
+    'RETURN',
+    'EIF',
+    'ELSE',
+    'FROM',
+    'TO',
+    'STEP',
+    'WHILE'
 ]

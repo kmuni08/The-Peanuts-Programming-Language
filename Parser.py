@@ -7,7 +7,9 @@ from VarAssignNode import VarAssignNode
 from NodeValue import NodeValue
 from UnaryOperationNode import UnaryOperationNode
 from BinaryOperationNode import BinaryOperationNode
-
+from IfNode import IfNode
+from ForNode import ForNode
+from WhileNode import WhileNode
 
 class Parser:
     def __init__(self, tokens):
@@ -30,6 +32,171 @@ class Parser:
             ))
         return res
 
+    def if_expression(self):
+        res = ParseResult()
+        cases = []
+        else_case = None
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'IF'):
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected 'IF'"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        condition = res.doCheck(self.expression())
+        if res.error:
+            return res
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'RETURN'):
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected 'RETURN'"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        expr = res.doCheck(self.expression())
+        if res.error:
+            return res
+        cases.append((condition, expr))
+
+        while self.current_token.matches(Constants.TT_KEYWORD, 'EIF'):
+            res.register_advancement()
+            self.continue_on()
+
+            condition = res.doCheck(self.expression())
+            if res.error:
+                return res
+
+            if not self.current_token.matches(Constants.TT_KEYWORD, 'RETURN'):
+                return res.fail(InvalidSyntaxError(
+                    self.current_token.position_start, self.current_token.position_end,
+                    f"Expected 'RETURN'"
+                ))
+
+            res.register_advancement()
+            self.continue_on()
+
+            expr = res.doCheck(self.expression())
+            if res.error:
+                return res
+            cases.append((condition, expr))
+
+        if self.current_token.matches(Constants.TT_KEYWORD, 'ELSE'):
+            res.register_advancement()
+            self.continue_on()
+
+            else_case = res.doCheck(self.expression())
+            if res.error:
+                return res
+
+        return res.success(IfNode(cases, else_case))
+
+    def for_expression(self):
+        res = ParseResult()
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'FROM'):
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected 'FROM'"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        if self.current_token.type != Constants.TT_IDENTIFIER:
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected identifier"
+            ))
+
+        var_name = self.current_token
+        res.register_advancement()
+        self.continue_on()
+
+        if self.current_token.type != Constants.TT_EQUALS:
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected '='"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        start_value = res.doCheck(self.expression())
+        if res.error:
+            return res
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'TO'):
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected 'TO'"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        end_value = res.doCheck(self.expression())
+        if res.error: return res
+
+        if self.current_token.matches(Constants.TT_KEYWORD, 'STEP'):
+            res.register_advancement()
+            self.continue_on()
+
+            step_value = res.doCheck(self.expression())
+            if res.error:
+                return res
+        else:
+            step_value = None
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'RETURN'):
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected 'RETURN'"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        body = res.doCheck(self.expression())
+        if res.error:
+            return res
+
+        return res.success(ForNode(var_name, start_value, end_value, step_value, body))
+
+    def while_expression(self):
+        res = ParseResult()
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'WHILE'):
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected 'WHILE'"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        condition = res.doCheck(self.expression())
+        if res.error: return res
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'RETURN'):
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                f"Expected 'RETURN'"
+            ))
+
+        res.register_advancement()
+        self.continue_on()
+
+        body = res.doCheck(self.expression())
+        if res.error:
+            return res
+
+        return res.success(WhileNode(condition, body))
     # create new atom rule to account for precedence.
 
     def atom(self):
@@ -58,6 +225,25 @@ class Parser:
                 return result_pr.fail(
                     InvalidSyntaxError(self.current_token.position_start, self.current_token.position_end,
                                        "Expected ')'"))
+
+        elif token.matches(Constants.TT_KEYWORD, 'IF'):
+            if_expression = result_pr.doCheck(self.if_expression())
+            if result_pr.error:
+                return result_pr
+            return result_pr.success(if_expression)
+
+        elif token.matches(Constants.TT_KEYWORD, 'FROM'):
+            for_expression = result_pr.doCheck(self.for_expression())
+            if result_pr.error:
+                return result_pr
+            return result_pr.success(for_expression)
+
+        elif token.matches(Constants.TT_KEYWORD, 'WHILE'):
+            while_expression = result_pr.doCheck(self.while_expression())
+            if result_pr.error:
+                return result_pr
+            return result_pr.success(while_expression)
+
         return result_pr.fail(InvalidSyntaxError(
             token.position_start, token.position_end,
             "Expected int, float, identifier, '+', '-', or '(' "

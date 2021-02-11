@@ -33,6 +33,80 @@ class Interpreter:
         value = value.copy().set_pos(node.position_start, node.position_end)
         return res.success(value)
 
+    def visit_IfNode(self, node, context):
+        res = RunTimeResult()
+
+        for condition, expr in node.cases:
+            condition_value = res.register(self.visitNode(condition, context))
+            if res.error:
+                return res
+
+            if condition_value.is_true():
+                expr_value = res.register(self.visitNode(expr, context))
+                if res.error:
+                    return res
+                return res.success(expr_value)
+
+        if node.else_case:
+            else_value = res.register(self.visitNode(node.else_case, context))
+            if res.error:
+                return res
+            return res.success(else_value)
+
+        return res.success(None)
+
+    def visit_ForNode(self, node, context):
+        res = RunTimeResult()
+
+        start_value = res.register(self.visitNode(node.start_value_node, context))
+        if res.error:
+            return res
+
+        end_value = res.register(self.visitNode(node.end_value_node, context))
+        if res.error:
+            return res
+
+        if node.step_value_node:
+            step_value = res.register(self.visitNode(node.step_value_node, context))
+            if res.error:
+                return res
+        else:
+            step_value = Number(1)
+
+        i = start_value.value
+
+        if step_value.value >= 0:
+            condition = lambda: i < end_value.value
+        else:
+            condition = lambda: i > end_value.value
+
+        while condition():
+            context.symbol_table.set(node.var_name_token.value, Number(i))
+            i += step_value.value
+
+            res.register(self.visitNode(node.body_node, context))
+            if res.error:
+                return res
+
+        return res.success(None)
+
+    def visit_WhileNode(self, node, context):
+        res = RunTimeResult()
+
+        while True:
+            condition = res.register(self.visitNode(node.condition_node, context))
+            if res.error:
+                return res
+
+            if not condition.is_true():
+                break
+
+            res.register(self.visitNode(node.body_node, context))
+            if res.error:
+                return res
+
+        return res.success(None)
+
     def visit_VarAssignNode(self, node, context):
         res = RunTimeResult()
         var_name = node.var_name_token.value
