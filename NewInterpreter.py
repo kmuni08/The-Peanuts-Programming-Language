@@ -1,14 +1,12 @@
 # INTERPRETER
-from Number import Number
-import Constants
 from RunTimeResult import RunTimeResult
-from Value import Value
-from Context import Context
-from SymbolTable import SymbolTable
+from Number import Number
 from RunTimeError import RunTimeError
+from Function import Function
+import Constants
 
 
-class Interpreter:
+class NewInterpreter:
     # takes in node to process, then visit child nodes. Want to determine
     # what function to call based on node.
     def visitNode(self, node, context):
@@ -112,10 +110,10 @@ class Interpreter:
 
     def visit_FuncDefNode(self, node, context):
         res = RunTimeResult()
+
         func_name = node.var_name_token.value if node.var_name_token else None
-        print(func_name)
         body_node = node.body_node
-        arg_names = [arg_name.value for arg_name in node.arg_name_tokens]
+        arg_names = [arg_name.value for arg_name in node.arg_name_toks]
         func_value = Function(func_name, body_node, arg_names).set_context(context).set_pos(node.position_start,
                                                                                             node.position_end)
         if node.var_name_token:
@@ -217,52 +215,3 @@ class Interpreter:
             return res.failure(error)
         else:
             return res.success(number.set_pos(node.position_start, node.position_end))
-
-
-class Function(Value):
-    def __init__(self, func_name, body_node, arg_names):
-        super().__init__()
-        self.func_name = func_name or "<anonymous>"
-        self.body_node = body_node
-        self.arg_names = arg_names
-
-    def execute(self, args):
-        res = RunTimeResult()
-        # make interpreter a static class
-        interpreter = Interpreter()
-        new_context = Context(self.func_name, self.context, self.position_start)
-        new_context.symbol_table = SymbolTable(new_context.parent.symbol_table)
-
-        if len(args) > len(self.arg_names):
-            return res.failure(RunTimeError(
-                self.position_start, self.position_end,
-                f"{len(args) - len(self.arg_names)} too many args passed into '{self.func_name}'",
-                self.context
-            ))
-
-        if len(args) < len(self.arg_names):
-            return res.failure(RunTimeError(
-                self.position_start, self.position_end,
-                f"{len(self.arg_names) - len(args)} too few args passed into '{self.func_name}'",
-                self.context
-            ))
-
-        for i in range(len(args)):
-            arg_name = self.arg_names[i]
-            arg_value = args[i]
-            arg_value.set_context(new_context)
-            new_context.symbol_table.set(arg_name, arg_value)
-
-        value = res.register(interpreter.visitNode(self.body_node, new_context))
-        if res.error:
-            return res
-        return res.success(value)
-
-    def copy(self):
-        copy = Function(self.func_name, self.body_node, self.arg_names)
-        copy.set_context(self.context)
-        copy.set_pos(self.position_start, self.position_end)
-        return copy
-
-    def __repr__(self):
-        return f"<function {self.func_name}>"

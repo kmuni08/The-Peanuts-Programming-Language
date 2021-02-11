@@ -37,8 +37,9 @@ class Lexer:
                 result_tokens.append(Token(Constants.TT_PLUS, position_start=self.pos))
                 self.continue_on()
             elif self.current_char == '-':
-                result_tokens.append(Token(Constants.TT_MINUS, position_start=self.pos))
-                self.continue_on()
+                # result_tokens.append(Token(Constants.TT_MINUS, position_start=self.pos))
+                # self.continue_on()
+                result_tokens.append(self.make_minus_or_arrow())
             elif self.current_char == '*':
                 result_tokens.append(Token(Constants.TT_MUL, position_start=self.pos))
                 self.continue_on()
@@ -70,6 +71,9 @@ class Lexer:
                 result_tokens.append(self.make_less_than())
             elif self.current_char == '>':
                 result_tokens.append(self.make_greater_than())
+            elif self.current_char == ',':
+                result_tokens.append(Token(Constants.TT_COMMA, position_start=self.pos))
+                self.continue_on()
             else:
                 # return error by storing char in variable,
                 # advance and return empty list and IllegalCharacterErr. Return None for err.
@@ -153,5 +157,16 @@ class Lexer:
         if self.current_char == '=':
             self.continue_on()
             token_type = Constants.TT_GTE
+
+        return Token(token_type, position_start=position_start, position_end=self.pos)
+
+    def make_minus_or_arrow(self):
+        token_type = Constants.TT_MINUS
+        position_start = self.pos.make_copy()
+        self.continue_on()
+
+        if self.current_char == '>':
+            self.continue_on()
+            token_type = Constants.TT_ARROW
 
         return Token(token_type, position_start=position_start, position_end=self.pos)

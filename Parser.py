@@ -10,6 +10,9 @@ from BinaryOperationNode import BinaryOperationNode
 from IfNode import IfNode
 from ForNode import ForNode
 from WhileNode import WhileNode
+from FuncDefNode import FuncDefNode
+from CallNode import CallNode
+
 
 class Parser:
     def __init__(self, tokens):
@@ -28,7 +31,7 @@ class Parser:
         if not res.error and self.current_token.type != Constants.TT_EOF:
             return res.fail(InvalidSyntaxError(
                 self.current_token.position_start, self.current_token.position_end,
-                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', 'AND' or 'OR'"
+                "Expected '+', '-', '*', '/', '%', '^', '==', '!=', '<', '>', <=', '>=', 'AND' or 'OR'"
             ))
         return res
 
@@ -197,6 +200,7 @@ class Parser:
             return res
 
         return res.success(WhileNode(condition, body))
+
     # create new atom rule to account for precedence.
 
     def atom(self):
@@ -244,13 +248,59 @@ class Parser:
                 return result_pr
             return result_pr.success(while_expression)
 
+        elif token.matches(Constants.TT_KEYWORD, 'BLOCKHEAD'):
+            function_definition = result_pr.doCheck(self.function_definition())
+            if result_pr.error:
+                return result_pr
+            return result_pr.success(function_definition)
+
         return result_pr.fail(InvalidSyntaxError(
             token.position_start, token.position_end,
-            "Expected int, float, identifier, '+', '-', or '(' "
+            "Expected int, float, identifier, '+', '-', '(', 'IF', 'FOR', 'WHILE', or 'BLOCKHEAD' "
         ))
 
     def power(self):
-        return self.binary_operation(self.atom, (Constants.TT_POWER,), self.factor)
+        return self.binary_operation(self.call, (Constants.TT_POWER,), self.factor)
+
+    def call(self):
+        res = ParseResult()
+        atom = res.doCheck(self.atom())
+        if res.error:
+            return res
+        if self.current_token.type == Constants.TT_LPAREN:
+            res.register_advancement()
+            self.continue_on()
+            arg_nodes = []
+
+            if self.current_token.type == Constants.TT_RPAREN:
+                res.register_advancement()
+                self.continue_on()
+            else:
+                arg_nodes.append(res.doCheck(self.expression()))
+                if res.error:
+                    return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                                       self.current_token.position_end,
+                                                       "Expected ')', 'LET', 'IF', 'FOR', 'WHILE', 'BLOCKHEAD', int, "
+                                                       "float, identifier,'+', '-', '(' or 'NOT'"
+                                                       ))
+                while self.current_token.type == Constants.TT_COMMA:
+                    res.register_advancement()
+                    self.continue_on()
+
+                    arg_nodes.append(res.doCheck(self.expression()))
+                    if res.error:
+                        return res
+
+                if self.current_token.type != Constants.TT_RPAREN:
+                    return res.fail(InvalidSyntaxError(
+                        self.current_token.position_start, self.current_token.position_end,
+                        f"Expected ',' or ')'"
+                    ))
+
+                res.register_advancement()
+                self.continue_on()
+            return res.success(CallNode(atom, arg_nodes))
+        return res.success(atom)
 
     # look for int or float and return Number node.
     def factor(self):
@@ -301,7 +351,7 @@ class Parser:
         if res.error:
             return res.fail(InvalidSyntaxError(
                 self.current_token.position_start, self.current_token.position_end,
-                "Expected 'LET', int, float, identifier, '+', '-' or '(' "
+                "Expected 'LET', 'IF', 'FOR', 'WHILE', 'BLOCKHEAD', int, float, identifier, '+', '-' or '(' or 'NOT' "
             ))
 
         return res.success(node)
@@ -328,10 +378,81 @@ class Parser:
         if res.error:
             return res.fail(InvalidSyntaxError(
                 self.current_token.position_start, self.current_token.position_end,
-                "Expected int, float, identifier, '+', '-', '(', 'NOT' "
+                "Expected int, float, identifier, '+', '-', '(', or 'NOT' "
             ))
 
         return res.success(node)
+
+    def function_definition(self):
+        res = ParseResult()
+
+        if not self.current_token.matches(Constants.TT_KEYWORD, 'BLOCKHEAD'):
+            return res.fail(InvalidSyntaxError(self.current_token.position_start, self.current_token.position_end,
+                                               f"Expected 'BLOCKHEAD'"))
+        res.register_advancement()
+        self.continue_on()
+
+        if self.current_token.type == Constants.TT_IDENTIFIER:
+            var_name_token = self.current_token
+            res.register_advancement()
+            self.continue_on()
+            if self.current_token.type != Constants.TT_LPAREN:
+                return res.fail(InvalidSyntaxError(self.current_token.position_start, self.current_token.position_end,
+                                                   f"Expected '('"))
+        else:
+            var_name_token = None
+            if self.current_token.type != Constants.TT_LPAREN:
+                return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                                   self.current_token.position_end, f"Expected identifier or '('"))
+
+        res.register_advancement()
+        self.continue_on()
+        arg_name_tokens = []
+
+        if self.current_token.type == Constants.TT_IDENTIFIER:
+            arg_name_tokens.append(self.current_token)
+            res.register_advancement()
+            self.continue_on()
+
+            while self.current_token.type == Constants.TT_COMMA:
+                res.register_advancement()
+                self.continue_on()
+
+                if self.current_token.type != Constants.TT_IDENTIFIER:
+                    return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                                       self.current_token.position_end,
+                                                       f"Expected identifier"))
+                arg_name_tokens.append(self.current_token)
+                res.register_advancement()
+                self.continue_on()
+
+            if self.current_token.type != Constants.TT_RPAREN:
+                return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                                   self.current_token.position_end, f"Expected ',' or ')'"))
+        else:
+            if self.current_token.type != Constants.TT_RPAREN:
+                return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                                   self.current_token.position_end,
+                                                   f"Expected identifier or ')'"))
+        res.register_advancement()
+        self.continue_on()
+
+        if self.current_token.type != Constants.TT_ARROW:
+            return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                               self.current_token.position_end,
+                                               f"Expected '->'"))
+
+        res.register_advancement()
+        self.continue_on()
+        node_to_return = res.doCheck(self.expression())
+        if res.error:
+            return res
+
+        return res.success(FuncDefNode(
+            var_name_token,
+            arg_name_tokens,
+            node_to_return
+        ))
 
     # shared by term and expression
     def binary_operation(self, func_1, operations, func_2=None):
@@ -344,7 +465,8 @@ class Parser:
         if result_pr.error:
             return result_pr
 
-        while self.current_token.type in operations or (self.current_token.type, self.current_token.value) in operations:
+        while self.current_token.type in operations or (
+                self.current_token.type, self.current_token.value) in operations:
             operator_token = self.current_token
             result_pr.register_advancement()
             self.continue_on()
