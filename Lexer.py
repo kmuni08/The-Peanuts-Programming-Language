@@ -2,6 +2,7 @@ from Token import Token
 from Position import Position
 import Constants
 from IllegalCharacterErr import IllegalCharacterErr
+from ExpectedCharError import ExpectedCharError
 
 
 # Lexer class
@@ -50,18 +51,28 @@ class Lexer:
             elif self.current_char == '^':
                 result_tokens.append(Token(Constants.TT_POWER, position_start=self.pos))
                 self.continue_on()
-            elif self.current_char == '=':
-                result_tokens.append(Token(Constants.TT_EQUALS, position_start=self.pos))
-                self.continue_on()
             elif self.current_char == '(':
                 result_tokens.append(Token(Constants.TT_LPAREN, position_start=self.pos))
                 self.continue_on()
             elif self.current_char == ')':
                 result_tokens.append(Token(Constants.TT_RPAREN, position_start=self.pos))
                 self.continue_on()
+            elif self.current_char == '!':
+                # check if next char is =, if so create make_not_equals() token.
+                token, error = self.make_not_equals()
+                if error:
+                    return [], error
+                result_tokens.append(token)
+            elif self.current_char == '=':
+                # make single equals if 1 eq or double equals if 2 eq.
+                result_tokens.append(self.make_equals())
+            elif self.current_char == '<':
+                result_tokens.append(self.make_less_than())
+            elif self.current_char == '>':
+                result_tokens.append(self.make_greater_than())
             else:
                 # return error by storing char in variable,
-                # advance and return empty list and illegalcharacterErr. Return None for err.
+                # advance and return empty list and IllegalCharacterErr. Return None for err.
                 pos_start = self.pos.make_copy()
                 char = self.current_char
                 self.continue_on()
@@ -99,3 +110,48 @@ class Lexer:
         # Built id string... determine whether to create identifier or keyword token.
         token_type = Constants.TT_KEYWORD if id_str in Constants.KEYWORDS else Constants.TT_IDENTIFIER
         return Token(token_type, id_str, position_start, self.pos)
+
+    def make_not_equals(self):
+        position_start = self.pos.make_copy()
+        # current character is !
+        self.continue_on()
+
+        if self.current_char == '=':
+            self.continue_on()
+            return Token(Constants.TT_NE, position_start=position_start, position_end=self.pos), None
+
+        self.continue_on()
+        return None, ExpectedCharError(position_start, self.pos, "'=' (after '!') ")
+
+    def make_equals(self):
+        token_type = Constants.TT_EQUALS
+        position_start = self.pos.make_copy()
+        self.continue_on()
+
+        if self.current_char == '=':
+            self.continue_on()
+            token_type = Constants.TT_EE
+
+        return Token(token_type, position_start=position_start, position_end=self.pos)
+
+    def make_less_than(self):
+        token_type = Constants.TT_LT
+        position_start = self.pos.make_copy()
+        self.continue_on()
+
+        if self.current_char == '=':
+            self.continue_on()
+            token_type = Constants.TT_LTE
+
+        return Token(token_type, position_start=position_start, position_end=self.pos)
+
+    def make_greater_than(self):
+        token_type = Constants.TT_GT
+        position_start = self.pos.make_copy()
+        self.continue_on()
+
+        if self.current_char == '=':
+            self.continue_on()
+            token_type = Constants.TT_GTE
+
+        return Token(token_type, position_start=position_start, position_end=self.pos)

@@ -18,8 +18,17 @@ TT_RPAREN = 'RPAREN'
 TT_IDENTIFIER = 'IDENTIFIER'
 TT_KEYWORD = 'KEYWORD'
 TT_EQUALS = 'EQUALS'
+TT_EE = "EE"
+TT_NE = "NE"
+TT_LT = "LT"
+TT_GT = "GT"
+TT_LTE = "LTE"
+TT_GTE = "GTE"
 TT_EOF = 'EOF'
 
 KEYWORDS = [
-    'LET'
+    'LET',
+    'AND',
+    'OR',
+    'NOT'
 ]

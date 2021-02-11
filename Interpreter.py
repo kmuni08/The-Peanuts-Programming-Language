@@ -67,6 +67,22 @@ class Interpreter:
             result, error = left.mod_by(right)
         elif node.operator_token.type == Constants.TT_POWER:
             result, error = left.pow_of(right)
+        elif node.operator_token.type == Constants.TT_EE:
+            result, error = left.get_comparison_eq(right)
+        elif node.operator_token.type == Constants.TT_NE:
+            result, error = left.get_comparison_ne(right)
+        elif node.operator_token.type == Constants.TT_LT:
+            result, error = left.get_comparison_lt(right)
+        elif node.operator_token.type == Constants.TT_GT:
+            result, error = left.get_comparison_gt(right)
+        elif node.operator_token.type == Constants.TT_LTE:
+            result, error = left.get_comparison_lte(right)
+        elif node.operator_token.type == Constants.TT_GTE:
+            result, error = left.get_comparison_gte(right)
+        elif node.operator_token.matches(Constants.TT_KEYWORD, 'AND'):
+            result, error = left.and_by(right)
+        elif node.operator_token.matches(Constants.TT_KEYWORD, 'OR'):
+            result, error = left.or_by(right)
 
         if error:
             return res.failure(error)
@@ -85,6 +101,8 @@ class Interpreter:
 
         if node.operator_token.type == Constants.TT_MINUS:
             number, error = number.mul_by(Number(-1))
+        elif node.operator_token.type.matches(Constants.TT_KEYWORD, 'NOT'):
+            number, error = number.notted()
 
         if error:
             return res.failure(error)

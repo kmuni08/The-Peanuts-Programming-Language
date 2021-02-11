@@ -26,7 +26,7 @@ class Parser:
         if not res.error and self.current_token.type != Constants.TT_EOF:
             return res.fail(InvalidSyntaxError(
                 self.current_token.position_start, self.current_token.position_end,
-                "Expected '+', '-', '*', '/', '%', or '^' "
+                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', 'AND' or 'OR'"
             ))
         return res
 
@@ -110,11 +110,39 @@ class Parser:
             if res.error:
                 return res
             return res.success(VarAssignNode(var_name, expr))
-        node = res.doCheck(self.binary_operation(self.term, (Constants.TT_PLUS, Constants.TT_MINUS)))
+        node = res.doCheck(self.binary_operation(self.comp_expr, ((Constants.TT_KEYWORD, "AND"),
+                                                                  (Constants.TT_KEYWORD, "OR"))))
         if res.error:
             return res.fail(InvalidSyntaxError(
                 self.current_token.position_start, self.current_token.position_end,
                 "Expected 'LET', int, float, identifier, '+', '-' or '(' "
+            ))
+
+        return res.success(node)
+
+    def arithmetic_expr(self):
+        return self.binary_operation(self.term, (Constants.TT_PLUS, Constants.TT_MINUS))
+
+    def comp_expr(self):
+        res = ParseResult()
+
+        if self.current_token.matches(Constants.TT_KEYWORD, 'NOT'):
+            operation_token = self.current_token
+            res.register_advancement()
+            self.continue_on()
+
+            node = res.doCheck(self.comp_expr())
+            if res.error:
+                return res
+            return res.success(UnaryOperationNode(operation_token, node))
+
+        node = res.doCheck(self.binary_operation(self.arithmetic_expr, (Constants.TT_EE, Constants.TT_NE,
+                                                                        Constants.TT_LT, Constants.TT_LTE,
+                                                                        Constants.TT_GT, Constants.TT_GTE)))
+        if res.error:
+            return res.fail(InvalidSyntaxError(
+                self.current_token.position_start, self.current_token.position_end,
+                "Expected int, float, identifier, '+', '-', '(', 'NOT' "
             ))
 
         return res.success(node)
@@ -130,7 +158,7 @@ class Parser:
         if result_pr.error:
             return result_pr
 
-        while self.current_token.type in operations:
+        while self.current_token.type in operations or (self.current_token.type, self.current_token.value) in operations:
             operator_token = self.current_token
             result_pr.register_advancement()
             self.continue_on()
