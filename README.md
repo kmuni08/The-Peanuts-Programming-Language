@@ -11,13 +11,14 @@ Git Clone this project and load into PyCharm.
 Run "main.py". 
 
 Commands to type in the terminal to test the application:
+# BINARY AND UNARY EXPRESSIONS
 1 + 2 ^ 3
 
 (3 * 2) % 6
 
 -2
 
-#VARIABLE NAMES
+# VARIABLE NAMES
 LET a = 5
 
 a - 2
@@ -41,7 +42,7 @@ FROM j = 1 TO 10 STEP 2 RETURN i^2
 LET i = 1
 WHILE i < 5 RETURN LET i = i + 1
 
-#FUNCTIONS:
+# FUNCTIONS:
 
 BLOCKHEAD add(a, b) -> a + b
 add(3, 4)
@@ -58,7 +59,7 @@ sub(8, 2)
 BLOCKHEAD mod(a, b) -> a % b
 sub(4, 2)
 
-#Strings
+# Strings
 
 "Hello " + "World"
 
