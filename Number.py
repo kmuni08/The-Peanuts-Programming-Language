@@ -4,23 +4,10 @@ from Value import Value
 
 
 class Number(Value):
-    # def __init__(self, value):
-    #     self.value = value
-    #     self.set_pos()
-    #     self.set_context()
 
     def __init__(self, value):
         super().__init__()
         self.value = value
-
-    # def set_pos(self, position_start=None, position_end=None):
-    #     self.position_start = position_start
-    #     self.position_end = position_end
-    #     return self
-    #
-    # def set_context(self, context=None):
-    #     self.context = context
-    #     return self
 
     def add_to(self, other):
         if isinstance(other, Number):
@@ -126,3 +113,6 @@ class Number(Value):
 
     def __repr__(self):
         return str(self.value)
+
+
+
