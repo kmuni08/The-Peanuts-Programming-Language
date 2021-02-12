@@ -6,7 +6,8 @@ from Value import Value
 from Context import Context
 from SymbolTable import SymbolTable
 from RunTimeError import RunTimeError
-
+from String import String
+from List import List
 
 class Interpreter:
     # takes in node to process, then visit child nodes. Want to determine
@@ -61,6 +62,8 @@ class Interpreter:
     def visit_ForNode(self, node, context):
         res = RunTimeResult()
 
+        elements = []
+
         start_value = res.register(self.visitNode(node.start_value_node, context))
         if res.error:
             return res
@@ -87,14 +90,17 @@ class Interpreter:
             context.symbol_table.set(node.var_name_token.value, Number(i))
             i += step_value.value
 
-            res.register(self.visitNode(node.body_node, context))
+            elements.append(res.register(self.visitNode(node.body_node, context)))
             if res.error:
                 return res
 
-        return res.success(None)
+        return res.success(
+            List(elements).set_context(context).set_pos(node.position_start, node.position_end)
+        )
 
     def visit_WhileNode(self, node, context):
         res = RunTimeResult()
+        elements = []
 
         while True:
             condition = res.register(self.visitNode(node.condition_node, context))
@@ -104,11 +110,13 @@ class Interpreter:
             if not condition.is_true():
                 break
 
-            res.register(self.visitNode(node.body_node, context))
+            elements.append(res.register(self.visitNode(node.body_node, context)))
             if res.error:
                 return res
 
-        return res.success(None)
+        return res.success(
+            List(elements).set_context(context).set_pos(node.position_start, node.position_end)
+        )
 
     def visit_FuncDefNode(self, node, context):
         res = RunTimeResult()
@@ -142,6 +150,23 @@ class Interpreter:
             return res
         return res.success(return_value)
 
+    def visit_StringNode(self, node, context):
+        return RunTimeResult().success(
+            String(node.token.value).set_context(context).set_pos(node.position_start, node.position_end)
+        )
+
+    def visit_ListNode(self, node, context):
+        res = RunTimeResult()
+        elements = []
+
+        for element_node in node.element_nodes:
+            elements.append(res.register(self.visitNode(element_node, context)))
+            if res.error:
+                return res
+        return res.success(
+            List(elements).set_context(context).set_pos(node.position_start, node.position_end)
+        )
+
     def visit_VarAssignNode(self, node, context):
         res = RunTimeResult()
         var_name = node.var_name_token.value
@@ -163,7 +188,6 @@ class Interpreter:
         right = res.register(self.visitNode(node.right_node, context))
         if res.error:
             return res
-
         if node.operator_token.type == Constants.TT_PLUS:
             result, error = left.add_to(right)
         elif node.operator_token.type == Constants.TT_MINUS:
@@ -266,3 +290,4 @@ class Function(Value):
 
     def __repr__(self):
         return f"<function {self.func_name}>"
+

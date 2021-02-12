@@ -12,6 +12,8 @@ from ForNode import ForNode
 from WhileNode import WhileNode
 from FuncDefNode import FuncDefNode
 from CallNode import CallNode
+from StringNode import StringNode
+from ListNode import ListNode
 
 
 class Parser:
@@ -211,6 +213,10 @@ class Parser:
             result_pr.register_advancement()
             self.continue_on()
             return result_pr.success(NodeValue(token))
+        elif token.type == Constants.TT_STRING:
+            result_pr.register_advancement()
+            self.continue_on()
+            return result_pr.success(StringNode(token))
         elif token.type == Constants.TT_IDENTIFIER:
             result_pr.register_advancement()
             self.continue_on()
@@ -229,6 +235,12 @@ class Parser:
                 return result_pr.fail(
                     InvalidSyntaxError(self.current_token.position_start, self.current_token.position_end,
                                        "Expected ')'"))
+
+        elif token.type == Constants.TT_LSQUARE:
+            list_expression = result_pr.doCheck(self.list_expression())
+            if result_pr.error:
+                return result_pr
+            return result_pr.success(list_expression)
 
         elif token.matches(Constants.TT_KEYWORD, 'IF'):
             if_expression = result_pr.doCheck(self.if_expression())
@@ -281,7 +293,7 @@ class Parser:
                     return res.fail(InvalidSyntaxError(self.current_token.position_start,
                                                        self.current_token.position_end,
                                                        "Expected ')', 'LET', 'IF', 'FOR', 'WHILE', 'BLOCKHEAD', int, "
-                                                       "float, identifier,'+', '-', '(' or 'NOT'"
+                                                       "float, identifier,'+', '-', '(', '[' or 'NOT'"
                                                        ))
                 while self.current_token.type == Constants.TT_COMMA:
                     res.register_advancement()
@@ -351,7 +363,8 @@ class Parser:
         if res.error:
             return res.fail(InvalidSyntaxError(
                 self.current_token.position_start, self.current_token.position_end,
-                "Expected 'LET', 'IF', 'FOR', 'WHILE', 'BLOCKHEAD', int, float, identifier, '+', '-' or '(' or 'NOT' "
+                "Expected 'LET', 'IF', 'FOR', 'WHILE', 'BLOCKHEAD', int, float, identifier, '+', '-' or '(' '[' or "
+                "'NOT' "
             ))
 
         return res.success(node)
@@ -378,7 +391,7 @@ class Parser:
         if res.error:
             return res.fail(InvalidSyntaxError(
                 self.current_token.position_start, self.current_token.position_end,
-                "Expected int, float, identifier, '+', '-', '(', or 'NOT' "
+                "Expected int, float, identifier, '+', '-', '(', '[' or 'NOT' "
             ))
 
         return res.success(node)
@@ -475,3 +488,54 @@ class Parser:
                 return result_pr
             left = BinaryOperationNode(left, operator_token, right)
         return result_pr.success(left)
+
+    def list_expression(self):
+        res = ParseResult()
+        element_nodes = []
+        position_start = self.current_token.position_start.make_copy()
+
+        if self.current_token.type != Constants.TT_LSQUARE:
+            return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                               self.current_token.position_end,
+                                               f"Expected '['"))
+
+        res.register_advancement()
+        self.continue_on()
+
+        if self.current_token.type == Constants.TT_RSQUARE:
+            res.register_advancement()
+            self.continue_on()
+        else:
+            element_nodes.append(res.doCheck(self.expression()))
+            if res.error:
+                return res.fail(InvalidSyntaxError(self.current_token.position_start,
+                                                   self.current_token.position_end,
+                                                   "Expected ']', 'LET', 'IF', 'FOR', 'WHILE', 'BLOCKHEAD', int, "
+                                                   "float, identifier,'+', '-', '(', '[' or 'NOT'"
+                                                   ))
+            while self.current_token.type == Constants.TT_COMMA:
+                res.register_advancement()
+                self.continue_on()
+
+                element_nodes.append(res.doCheck(self.expression()))
+                if res.error:
+                    return res
+
+            if self.current_token.type != Constants.TT_RSQUARE:
+                return res.fail(InvalidSyntaxError(
+                    self.current_token.position_start, self.current_token.position_end,
+                    f"Expected ',' or ']'"
+                ))
+
+            res.register_advancement()
+            self.continue_on()
+
+        return res.success(ListNode(
+            element_nodes,
+            position_start,
+            self.current_token.position_end.make_copy()
+        ))
+
+
+
+

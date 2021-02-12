@@ -25,11 +25,6 @@ def run(file_name, text):
     # Create Instance of Interpreter
     if ast.error:
         return None, ast.error
-    # Run Program
-    # interpreter = Interpreter()
-    # context = Context('<program>')
-    # context.symbol_table = global_symbol_table
-    # result = interpreter.visitNode(ast.node, context)
 
     interpreter = Interpreter()
     context = Context('<program>')

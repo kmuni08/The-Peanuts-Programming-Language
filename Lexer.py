@@ -33,6 +33,8 @@ class Lexer:
                 result_tokens.append(self.create_number())
             elif self.current_char in Constants.LETTERS:
                 result_tokens.append(self.create_identifier())
+            elif self.current_char == '"':
+                result_tokens.append(self.create_string())
             elif self.current_char == '+':
                 result_tokens.append(Token(Constants.TT_PLUS, position_start=self.pos))
                 self.continue_on()
@@ -57,6 +59,12 @@ class Lexer:
                 self.continue_on()
             elif self.current_char == ')':
                 result_tokens.append(Token(Constants.TT_RPAREN, position_start=self.pos))
+                self.continue_on()
+            elif self.current_char == '[':
+                result_tokens.append(Token(Constants.TT_LSQUARE, position_start=self.pos))
+                self.continue_on()
+            elif self.current_char == ']':
+                result_tokens.append(Token(Constants.TT_RSQUARE, position_start=self.pos))
                 self.continue_on()
             elif self.current_char == '!':
                 # check if next char is =, if so create make_not_equals() token.
@@ -170,3 +178,30 @@ class Lexer:
             token_type = Constants.TT_ARROW
 
         return Token(token_type, position_start=position_start, position_end=self.pos)
+
+    def create_string(self):
+        string = ''
+        position_start = self.pos.make_copy()
+        escape_character = False
+        self.continue_on()
+
+        escape_characters = {
+            'n': '\n',
+            't': '\t'
+        }
+
+        while self.current_char is not None and (self.current_char != '"' or escape_character):
+            if escape_character:
+                string += escape_characters.get(self.current_char, self.current_char)
+            else:
+                # check to see if current_char is a backslash
+                if self.current_char == '\\':
+                    escape_character = True
+                else:
+                    string += self.current_char
+            self.continue_on()
+            escape_character = False
+
+        self.continue_on()
+        return Token(Constants.TT_STRING, string, position_start, self.pos)
+
