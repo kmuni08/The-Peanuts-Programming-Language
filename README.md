@@ -26,6 +26,21 @@ LET b = 0
 
 12 / 0      <- Division by zero error 
 
+# CONDITIONALS:
+
+IF 6 == 6 AND 4 == 4 RETURN 1
+
+IF 6 == 6 AND 4 == 4 RETURN "Snoopy is the bestest friend ever"
+
+# FOR LOOP:
+FROM i = 1 TO 9 RETURN i^2
+
+FROM j = 1 TO 10 STEP 2 RETURN i^2
+
+# WHILE LOOP:
+LET i = 1
+WHILE i < 5 RETURN LET i = i + 1
+
 #FUNCTIONS:
 
 BLOCKHEAD add(a, b) -> a + b
