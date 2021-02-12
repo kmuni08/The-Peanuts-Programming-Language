@@ -49,3 +49,7 @@ sub(4, 2)
 
 LET c = "Hello " + "World"
 c * 3
+
+I changed the naming conventions to be more readable and also structures the Python classes in multiple files in order to be organized. 
+
+Problem I'd like to fix is in the Interpreter class there are two classes (Interpreter and Function). The Function uses the Interpreter class therefore putting the Function class as a separate file and importing the module would cause circular import. I'd like to find a better way to structure this and avoid circular import. 
