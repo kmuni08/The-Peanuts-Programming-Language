@@ -1,6 +1,6 @@
 # Snoopy-Programming-Language
 
-This project is based on the tutorial "Make YOUR OWN Programming Language" to create my own programming language called "Snoopy" using Python. 
+This project is based on the tutorial "Make YOUR OWN Programming Language" to create my own programming language called "Peanuts Programming Language" using Python. 
 
 Check out his videos here: 
 https://www.youtube.com/watch?v=Eythq9848Fg&list=PLZQftyCk7_SdoVexSmwy_tBgs7P0b97yD
